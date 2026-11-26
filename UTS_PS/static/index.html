@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="id" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic System Modelling - CHAERY CHLOE</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for Realtime System Dynamics Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        google: {
+                            green: '#008744',
+                            blue: '#0057e7',
+                            red: '#d62d20',
+                            yellow: '#ffa700'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        * {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+        }
+
+        /* GOOGLE LIQUID GLASS AESTHETICS */
+        .google-glass {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04), inset 0 1px 2px rgba(255, 255, 255, 1);
+        }
+        .dark .google-glass {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+        }
+
+        .google-card {
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(16px) saturate(170%);
+            -webkit-backdrop-filter: blur(16px) saturate(170%);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 12px 32px -4px rgba(0, 87, 231, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .dark .google-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(16px) saturate(170%);
+            -webkit-backdrop-filter: blur(16px) saturate(170%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.4);
+        }
+
+        .google-card:hover {
+            border-color: rgba(0, 87, 231, 0.35);
+            box-shadow: 0 18px 40px -6px rgba(0, 87, 231, 0.12);
+        }
+        .dark .google-card:hover {
+            border-color: rgba(0, 87, 231, 0.5);
+            box-shadow: 0 18px 40px -6px rgba(0, 87, 231, 0.2);
+        }
+
+        .btn-motion {
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background-color 0.2s ease;
+            transform-origin: center;
+            will-change: transform;
+        }
+        .btn-motion:hover {
+            transform: translateY(-2px) scale(1.02);
+        }
+        .btn-motion:active {
+            transform: translateY(0px) scale(0.96) !important;
+        }
+
+        .ambient-glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.18;
+            pointer-events: none;
+            animation: floatGlow 22s ease-in-out infinite alternate;
+        }
+        .dark .ambient-glow {
+            opacity: 0.28;
+            filter: blur(110px);
+        }
+        @keyframes floatGlow {
+            0% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(40px, 30px) scale(1.08); }
+            100% { transform: translate(-30px, 50px) scale(0.95); }
+        }
+
+        /* Custom Styling for Range Sliders */
+        input[type=range] {
+            accent-color: #0057e7;
+        }
+    </style>
+</head>
+<body class="select-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden relative selection:bg-blue-500 selection:text-white">
+
+    <!-- AMBIENT GOOGLE COLOR BLOBS -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="ambient-glow bg-[#0057e7] w-[480px] h-[480px] -top-24 -left-20"></div>
+        <div class="ambient-glow bg-[#008744] w-[420px] h-[420px] top-[35%] -right-20"></div>
+        <div class="ambient-glow bg-[#ffa700] w-[380px] h-[380px] -bottom-24 left-[25%]"></div>
+        <div class="ambient-glow bg-[#d62d20] w-[320px] h-[320px] top-[15%] right-[28%]"></div>
+    </div>
+
+    <!-- BACKGROUND PARTICLES CANVAS -->
+    <canvas id="sparseBgCanvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="sticky top-0 z-40 px-4 pt-4">
+        <div class="google-glass max-w-7xl mx-auto rounded-2xl px-6 py-3.5 flex justify-between items-center">
+            
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-1.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 px-2.5 py-1.5 rounded-xl shadow-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#0057e7]"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#d62d20]"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#ffa700]"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#008744]"></span>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-slate-900 dark:text-white text-base leading-none tracking-tight">System Dynamics</h1>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Pemodelan & Simulasi Studio</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3 p-1">
+                <button onclick="toggleDarkMode()" id="darkModeBtn" aria-label="Toggle Dark Mode" class="btn-motion bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-sm cursor-pointer flex items-center justify-center">
+                    <svg id="sunIcon" class="w-4 h-4 hidden text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" clip-rule="evenodd"/></svg>
+                    <svg id="moonIcon" class="w-4 h-4 text-slate-700" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+                </button>
+
+                <div class="flex items-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-semibold px-3.5 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-sm select-none">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="aiModelBadge">Euler Method Integration</span>
+                </div>
+
+                <button onclick="toggleProfileModal(true)" class="btn-motion flex items-center space-x-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-1.5 pr-3.5 rounded-full shadow-sm cursor-pointer">
+                    <div class="w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 shadow-sm flex-shrink-0">
+                        <img src="img03.jpg" alt="CHAERY CHLOE" class="w-full h-full object-cover">
+                    </div>
+                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200">CHAERY CHLOE</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN HERO WORKSPACE SECTION -->
+    <main class="relative z-10 max-w-5xl w-full mx-auto px-4 pt-8 pb-16 flex flex-col items-center space-y-6">
+        
+        <div class="text-center space-y-2 max-w-xl">
+            <span class="inline-flex items-center space-x-2 google-glass px-4 py-1.5 rounded-full text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                <span class="flex space-x-1">
+                    <span class="w-2 h-2 rounded-full bg-[#0057e7]"></span>
+                    <span class="w-2 h-2 rounded-full bg-[#d62d20]"></span>
+                    <span class="w-2 h-2 rounded-full bg-[#ffa700]"></span>
+                    <span class="w-2 h-2 rounded-full bg-[#008744]"></span>
+                </span>
+                <span>CHAERY CHLOE</span>
+            </span>
+            <h2 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Warehouse & Retail <span class="text-[#0057e7] dark:text-blue-400">System Dynamics</span>
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                Simulasi interaktif dinamika persediaan stok dan alur rantai pasok (Gudang & Toko Ritel) berbasis persamaan integrasi Euler.
+            </p>
+        </div>
+
+        <!-- MAIN CONTAINER -->
+        <div class="google-card rounded-3xl p-6 md:p-8 max-w-4xl w-full space-y-6">
+            
+            <div class="flex justify-between items-center border-b border-slate-200/60 dark:border-slate-800 pb-3 text-xs font-semibold">
+                <span class="text-slate-800 dark:text-slate-200 font-bold">Control Panel & Parameter Simulasi</span>
+                <button onclick="resetDefaultParameters()" class="btn-motion text-[11px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-[#0057e7] dark:text-blue-400 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                     Reset Parameter 😹
+                </button>
+            </div>
+
+            <!-- SYSTEM DYNAMICS INPUT PARAMETERS FORM GRID -->
+            <form id="simulationForm" onsubmit="handleSimulation(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Durasi Simulasi</label>
+                        <span id="val_months" class="font-bold text-[#0057e7] dark:text-blue-400">24 Bulan</span>
+                    </div>
+                    <input type="range" id="months" min="6" max="60" value="24" step="1" class="w-full cursor-pointer">
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Safety Stock Factor</label>
+                        <span id="val_safety_stock_factor" class="font-bold text-[#0057e7] dark:text-blue-400">1.5x</span>
+                    </div>
+                    <input type="range" id="safety_stock_factor" min="0.5" max="3.5" value="1.5" step="0.1" class="w-full cursor-pointer">
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Lead Time Supplier</label>
+                        <span id="val_lead_time_supplier" class="font-bold text-[#0057e7] dark:text-blue-400">2 Bulan</span>
+                    </div>
+                    <input type="range" id="lead_time_supplier" min="1" max="6" value="2" step="1" class="w-full cursor-pointer">
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Demand Shock (%)</label>
+                        <span id="val_demand_shock_percent" class="font-bold text-[#0057e7] dark:text-blue-400">0%</span>
+                    </div>
+                    <input type="range" id="demand_shock_percent" min="-50" max="100" value="0" step="5" class="w-full cursor-pointer">
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Bulan Mulai Shock</label>
+                        <span id="val_shock_start_month" class="font-bold text-[#0057e7] dark:text-blue-400">Bulan 6</span>
+                    </div>
+                    <input type="range" id="shock_start_month" min="1" max="36" value="6" step="1" class="w-full cursor-pointer">
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-bold text-slate-700 dark:text-slate-300">Adjustment Time</label>
+                        <span id="val_adjustment_time" class="font-bold text-[#0057e7] dark:text-blue-400">2.0 Bulan</span>
+                    </div>
+                    <input type="range" id="adjustment_time" min="0.5" max="6.0" value="2.0" step="0.5" class="w-full cursor-pointer">
+                </div>
+
+                <div class="md:col-span-3 flex items-end pt-2">
+                    <button type="submit" class="btn-motion w-full bg-[#0057e7] hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl shadow-md shadow-blue-500/20">
+                        Jalankan Simulasi Sistem Dinamik
+                    </button>
+                </div>
+            </form>
+
+            <!-- DYNAMIC DISPLAY RESULT METRICS -->
+            <div id="contentArea" class="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md rounded-2xl p-6 border border-white dark:border-slate-800 min-h-[140px] flex flex-col justify-between shadow-inner space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Status Simulasi Systems</span>
+                    <span id="statusBadge" class="text-[10px] bg-[#008744]/10 text-[#008744] dark:text-emerald-400 font-bold px-3 py-1 rounded-full border border-[#008744]/20">
+                        Standby
+                    </span>
+                </div>
+
+                <!-- KEY METRICS GRID -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white/80 dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rata-rata Retail Sales (CSV)</span>
+                        <div class="flex items-baseline space-x-1 mt-1">
+                            <span id="baseRetailSales" class="text-xl font-extrabold text-slate-900 dark:text-white">0</span>
+                            <span class="text-[10px] text-slate-500">unit/bln</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/80 dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rata-rata Warehouse Sales (CSV)</span>
+                        <div class="flex items-baseline space-x-1 mt-1">
+                            <span id="baseWarehouseSales" class="text-xl font-extrabold text-slate-900 dark:text-white">0</span>
+                            <span class="text-[10px] text-slate-500">unit/bln</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/80 dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200/70 dark:border-slate-700/70">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Stockout Terakumulasi</span>
+                        <div class="flex items-baseline space-x-1 mt-1">
+                            <span id="totalRetailStockout" class="text-xl font-extrabold text-[#d62d20]">0</span>
+                            <span class="text-[10px] text-slate-500">unit terlewat</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-200/60 dark:border-slate-800 pt-3">
+                    <span class="flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-[#0057e7]"></span>
+                        <span id="dataStatusText" class="text-slate-600 dark:text-slate-400 font-medium">Dataset: sales.csv</span>
+                    </span>
+                    <span>Developer: <strong class="text-slate-800 dark:text-slate-200">CHAERY CHLOE</strong></span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SCROLLABLE SHOWCASE SECTIONS FOR CHARTS -->
+    <section class="google-glass border-t border-slate-100 dark:border-slate-800/80 py-12 px-4 relative z-10">
+        <div class="max-w-5xl mx-auto space-y-8">
+            
+            <div class="text-center space-y-1">
+                <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white">Grafik Dinamika Stok & Aliran Rantai Pasok</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                    Visualisasi variabel stok (State) dan variabel aliran (Flow) hasil komputasi integrasi Euler berbasis deret waktu.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6">
+                <!-- Chart 1: State Variables (Warehouse vs Retail Inventory Stock) -->
+                <div class="google-card rounded-2xl p-6 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">Dinamika Perubahan Stok Gudang vs Toko Ritel (State Stocks)</h4>
+                        <span class="text-[10px] text-[#0057e7] dark:text-blue-400 font-bold bg-[#0057e7]/10 dark:bg-[#0057e7]/20 px-2.5 py-0.5 rounded-full border border-[#0057e7]/20">Stock Levels</span>
+                    </div>
+                    <div class="relative h-72 w-full">
+                        <canvas id="stockChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Flow Variables (Sales, Transfers, Demand & Stockout) -->
+                <div class="google-card rounded-2xl p-6 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">Aliran Permintaan, Penjualan, Transfer & Stockout (Flow Variables)</h4>
+                        <span class="text-[10px] text-[#008744] dark:text-emerald-400 font-bold bg-[#008744]/10 dark:bg-[#008744]/20 px-2.5 py-0.5 rounded-full border border-[#008744]/20">Flow Rates</span>
+                    </div>
+                    <div class="relative h-72 w-full">
+                        <canvas id="flowChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTACT SECTION -->
+            <div class="google-card rounded-3xl p-6 md:p-8 space-y-6">
+                <div class="text-center max-w-md mx-auto space-y-2">
+                    <span class="inline-block text-[11px] font-bold text-[#0057e7] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-3 py-1 rounded-full border border-blue-200/60 dark:border-blue-900/40">Get In Touch</span>
+                    <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white">CALL ME 😹</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">BUG, ERROR, SIMULATION MISMATCH? CALL CHAERY CHLOE!</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                    <a href="https://instagram.com/ncvgstrkjg" target="_blank" rel="noopener noreferrer" class="btn-motion google-card rounded-2xl p-5 flex items-center space-x-4 border border-slate-200/80 dark:border-slate-800 hover:border-[#d62d20] transition">
+                        <img src="instagram.jpg" alt="Instagram" class="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Instagram</span>
+                            <span class="text-xs font-bold text-slate-900 dark:text-white">@ncvgstrkjg</span>
+                        </div>
+                    </a>
+
+                    <a href="mailto:chaerychloe@gmail.com" class="btn-motion google-card rounded-2xl p-5 flex items-center space-x-4 border border-slate-200/80 dark:border-slate-800 hover:border-[#0057e7] transition">
+                        <img src="email.jpg" alt="Email" class="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Email Contact</span>
+                            <span class="text-xs font-bold text-slate-900 dark:text-white">chaerychloe@gmail.com</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-white dark:bg-slate-950 border-t border-slate-200/80 dark:border-slate-800 py-6 px-6 relative z-10">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 dark:text-slate-400 gap-4">
+            <div>
+                &copy; 2026 System Dynamics Studio. Developer & Owner: <strong class="text-slate-900 dark:text-slate-200 font-bold">CHAERY CHLOE</strong>
+            </div>
+            <div class="flex space-x-6 font-semibold p-1">
+                <button onclick="toggleProfileModal(true)" class="btn-motion hover:text-[#0057e7] dark:hover:text-blue-400">Profil Owner</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- OWNER PROFILE MODAL WITH LOCAL IMAGE img03.jpg -->
+    <div id="profileModal" class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200">
+        <div id="modalCard" class="google-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 max-w-sm w-full space-y-5 transform scale-90 transition-all duration-200 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Developer Profile</span>
+                <button onclick="toggleProfileModal(false)" class="btn-motion text-slate-400 hover:text-slate-800 dark:hover:text-white text-sm font-bold p-1 rounded-lg">✕</button>
+            </div>
+
+            <div class="text-center space-y-3">
+                <div class="w-24 h-24 mx-auto rounded-full overflow-hidden border-2 border-slate-200 dark:border-slate-700 shadow-lg">
+                    <img src="img03.jpg" alt="CHAERY CHLOE" class="w-full h-full object-cover">
+                </div>
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900 dark:text-white">CHAERY CHLOE</h3>
+                    <p class="text-xs text-[#0057e7] dark:text-blue-400 font-bold mt-0.5">Owner & Fullstack AI Developer</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-slate-950/80 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-2.5 shadow-sm">
+                <div class="flex justify-between"><span class="text-slate-400 font-medium">Spesialisasi:</span><span class="font-bold text-slate-800 dark:text-slate-200">AI UI/UX & Web Systems</span></div>
+                <div class="flex justify-between"><span class="text-slate-400 font-medium">Instagram:</span><span class="font-bold text-[#d62d20]">@ncvgstrkjg</span></div>
+                <div class="flex justify-between"><span class="text-slate-400 font-medium">Email:</span><span class="font-bold text-[#0057e7]">chaerychloe@gmail.com</span></div>
+                <div class="flex justify-between"><span class="text-slate-400 font-medium">Status Engine:</span><span class="font-bold text-[#008744] dark:text-emerald-400">System Dynamics Active</span></div>
+            </div>
+
+            <div class="p-1">
+                <button onclick="toggleProfileModal(false)" class="btn-motion w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold py-3 rounded-xl shadow-md">Tutup Profil</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT HANDLERS -->
+    <script>
+        let stockChartInstance = null;
+        let flowChartInstance = null;
+
+        // Dark Mode Toggle Logic
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const sunIcon = document.getElementById('sunIcon');
+            const moonIcon = document.getElementById('moonIcon');
+
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                if (sunIcon) sunIcon.classList.add('hidden');
+                if (moonIcon) moonIcon.classList.remove('hidden');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.remove('light');
+                html.classList.add('dark');
+                if (moonIcon) moonIcon.classList.add('hidden');
+                if (sunIcon) sunIcon.classList.remove('hidden');
+                localStorage.setItem('theme', 'dark');
+            }
+            fetchAndRenderSimulation();
+        }
+
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+            const moonIcon = document.getElementById('moonIcon');
+            const sunIcon = document.getElementById('sunIcon');
+            if (moonIcon) moonIcon.classList.add('hidden');
+            if (sunIcon) sunIcon.classList.remove('hidden');
+        }
+
+        // Particle Canvas Animation
+        const canvas = document.getElementById('sparseBgCanvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            });
+
+            const googleColors = ['rgba(0, 87, 231, 0.22)', 'rgba(214, 45, 32, 0.18)', 'rgba(255, 167, 0, 0.22)', 'rgba(0, 135, 68, 0.22)'];
+            const particles = Array.from({ length: 18 }, () => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 8 + 4,
+                color: googleColors[Math.floor(Math.random() * googleColors.length)],
+                vx: (Math.random() - 0.5) * 0.35,
+                vy: (Math.random() - 0.5) * 0.35
+            }));
+
+            function drawSparseParticles() {
+                ctx.clearRect(0, 0, width, height);
+                particles.forEach(p => {
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.x < 0) p.x = width; if (p.x > width) p.x = 0;
+                    if (p.y < 0) p.y = height; if (p.y > height) p.y = 0;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color; ctx.fill();
+                });
+                requestAnimationFrame(drawSparseParticles);
+            }
+            drawSparseParticles();
+        }
+
+        // Profile Modal Logic
+        function toggleProfileModal(show) {
+            const modal = document.getElementById('profileModal');
+            const card = document.getElementById('modalCard');
+            if (!modal || !card) return;
+
+            if (show) {
+                if (modal.parentNode !== document.body) document.body.appendChild(modal);
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                card.classList.remove('scale-90'); card.classList.add('scale-100');
+                document.body.style.overflow = 'hidden';
+            } else {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                card.classList.remove('scale-100'); card.classList.add('scale-90');
+                document.body.style.overflow = '';
+            }
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') toggleProfileModal(false); });
+
+        // Input Range Sliders Sync & Event Listeners
+        const sliderIds = [
+            { id: 'months', unit: ' Bulan' },
+            { id: 'safety_stock_factor', unit: 'x' },
+            { id: 'lead_time_supplier', unit: ' Bulan' },
+            { id: 'demand_shock_percent', unit: '%' },
+            { id: 'shock_start_month', prefix: 'Bulan ' },
+            { id: 'adjustment_time', unit: ' Bulan' }
+        ];
+
+        sliderIds.forEach(item => {
+            const slider = document.getElementById(item.id);
+            const label = document.getElementById(`val_${item.id}`);
+            if (slider && label) {
+                slider.addEventListener('input', (e) => {
+                    const val = e.target.value;
+                    label.innerText = (item.prefix || '') + val + (item.unit || '');
+                    fetchAndRenderSimulation();
+                });
+            }
+        });
+
+        function resetDefaultParameters() {
+            document.getElementById('months').value = 24;
+            document.getElementById('val_months').innerText = "24 Bulan";
+
+            document.getElementById('safety_stock_factor').value = 1.5;
+            document.getElementById('val_safety_stock_factor').innerText = "1.5x";
+
+            document.getElementById('lead_time_supplier').value = 2;
+            document.getElementById('val_lead_time_supplier').innerText = "2 Bulan";
+
+            document.getElementById('demand_shock_percent').value = 0;
+            document.getElementById('val_demand_shock_percent').innerText = "0%";
+
+            document.getElementById('shock_start_month').value = 6;
+            document.getElementById('val_shock_start_month').innerText = "Bulan 6";
+
+            document.getElementById('adjustment_time').value = 2.0;
+            document.getElementById('val_adjustment_time').innerText = "2.0 Bulan";
+
+            fetchAndRenderSimulation();
+        }
+
+        // Handle Simulation API Request
+        function handleSimulation(e) {
+            if (e) e.preventDefault();
+            fetchAndRenderSimulation();
+        }
+
+        async function fetchAndRenderSimulation() {
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.className = 'text-[10px] bg-amber-500/10 text-amber-500 font-bold px-3 py-1 rounded-full border border-amber-500/20';
+            statusBadge.innerText = 'Calculating Dynamics...';
+
+            const params = new URLSearchParams({
+                months: document.getElementById('months').value,
+                safety_stock_factor: document.getElementById('safety_stock_factor').value,
+                lead_time_supplier: document.getElementById('lead_time_supplier').value,
+                demand_shock_percent: document.getElementById('demand_shock_percent').value,
+                shock_start_month: document.getElementById('shock_start_month').value,
+                adjustment_time: document.getElementById('adjustment_time').value
+            });
+
+            try {
+                const response = await fetch(`/api/simulate?${params.toString()}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+
+                // Update Metrics Card
+                document.getElementById('baseRetailSales').innerText = Math.round(data.baseline.retail_sales).toLocaleString();
+                document.getElementById('baseWarehouseSales').innerText = Math.round(data.baseline.warehouse_sales).toLocaleString();
+
+                const totalStockout = data.simulation.retail_stockout.reduce((a, b) => a + b, 0);
+                document.getElementById('totalRetailStockout').innerText = Math.round(totalStockout).toLocaleString();
+
+                const dataStatusText = document.getElementById('dataStatusText');
+                if (data.baseline.data_loaded_from_csv) {
+                    dataStatusText.innerText = "Dataset: sales.csv (Loaded)";
+                    dataStatusText.className = "text-[#008744] dark:text-emerald-400 font-medium";
+                } else {
+                    dataStatusText.innerText = "Dataset: Baseline Fallback";
+                    dataStatusText.className = "text-amber-500 font-medium";
+                }
+
+                statusBadge.className = 'text-[10px] bg-[#008744]/10 text-[#008744] dark:text-emerald-400 font-bold px-3 py-1 rounded-full border border-[#008744]/20';
+                statusBadge.innerText = 'Euler Engine Active';
+
+                // Render Chart.js
+                renderCharts(data.simulation);
+
+            } catch (err) {
+                statusBadge.className = 'text-[10px] bg-[#d62d20]/10 text-[#d62d20] font-bold px-3 py-1 rounded-full border border-[#d62d20]/20';
+                statusBadge.innerText = 'ERROR SERVER';
+                console.error("Gagal menjalankan simulasi:", err);
+            }
+        }
+
+        // Render System Dynamics Charts using Chart.js
+        function renderCharts(sim) {
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)';
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+
+            // Chart 1: Stock State Variables
+            const ctxStock = document.getElementById('stockChart').getContext('2d');
+            if (stockChartInstance) stockChartInstance.destroy();
+
+            stockChartInstance = new Chart(ctxStock, {
+                type: 'line',
+                data: {
+                    labels: sim.month.map(m => `Bulan ${m}`),
+                    datasets: [
+                        {
+                            label: 'Stok Gudang Utama (S_w)',
+                            data: sim.warehouse_stock,
+                            borderColor: '#0057e7',
+                            backgroundColor: 'rgba(0, 87, 231, 0.12)',
+                            fill: true,
+                            tension: 0.25,
+                            borderWidth: 2.5
+                        },
+                        {
+                            label: 'Stok Toko Ritel (S_r)',
+                            data: sim.retail_stock,
+                            borderColor: '#008744',
+                            backgroundColor: 'rgba(0, 135, 68, 0.12)',
+                            fill: true,
+                            tension: 0.25,
+                            borderWidth: 2.5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
+                        y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: textColor, font: { size: 11, weight: '600' } } }
+                    }
+                }
+            });
+
+            // Chart 2: Flow Variables
+            const ctxFlow = document.getElementById('flowChart').getContext('2d');
+            if (flowChartInstance) flowChartInstance.destroy();
+
+            flowChartInstance = new Chart(ctxFlow, {
+                type: 'line',
+                data: {
+                    labels: sim.month.map(m => `Bulan ${m}`),
+                    datasets: [
+                        {
+                            label: 'Retail Sales (Penjualan Real)',
+                            data: sim.retail_sales,
+                            borderColor: '#008744',
+                            borderWidth: 2,
+                            tension: 0.2
+                        },
+                        {
+                            label: 'Retail Demand (Target Permintaan)',
+                            data: sim.retail_demand,
+                            borderColor: '#ffa700',
+                            borderDash: [5, 5],
+                            borderWidth: 2,
+                            tension: 0.2
+                        },
+                        {
+                            label: 'Retail Transfers (Gudang -> Ritel)',
+                            data: sim.retail_transfers,
+                            borderColor: '#0057e7',
+                            borderWidth: 2,
+                            tension: 0.2
+                        },
+                        {
+                            label: 'Retail Stockout (Kehabisan Stok)',
+                            data: sim.retail_stockout,
+                            borderColor: '#d62d20',
+                            backgroundColor: 'rgba(214, 45, 32, 0.2)',
+                            fill: true,
+                            borderWidth: 2,
+                            tension: 0.2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } },
+                        y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 10 } } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: textColor, font: { size: 11, weight: '600' } } }
+                    }
+                }
+            });
+        }
+
+        // Initial Load Trigger
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchAndRenderSimulation();
+        });
+
+        // 1. Matikan Klik Kanan (Context Menu)
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // 2. Matikan Shortcut Inspect Element (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Cmd+Opt+I)
+        document.addEventListener('keydown', function(e) {
+            if (
+                e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+                (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+                (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) || 
+                (e.metaKey && (e.key === 'U' || e.key === 'u'))
+            ) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
